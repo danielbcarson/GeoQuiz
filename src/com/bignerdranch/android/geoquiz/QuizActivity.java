@@ -1,6 +1,7 @@
 package com.bignerdranch.android.geoquiz;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -14,12 +15,15 @@ public class QuizActivity extends Activity {
 
 	private static final String TAG = "QuizActivity";
 	private static final String KEY_INDEX = "index";
+	private static final String KEY_CHEAT_INDICES = "cheat_indices";
+	private static final int CHEAT_ACTIVITY_REQUEST_CODE =0;
 	
 	private Button mTrueButton;
 	private Button mFalseButton;
 	private ImageButton mNextButton;
 	private ImageButton mPrevButton;
 	private TextView mQuestionTextView;
+	private Button mCheatButton;
 
 	private TrueFalse[] mQuestionBank = new TrueFalse [] {
 		new TrueFalse( R.string.question_africa, false ),
@@ -28,6 +32,8 @@ public class QuizActivity extends Activity {
 		new TrueFalse(R.string.questions_ocean, true),
 		new TrueFalse(R.string.question_mideast, false)
 	};
+	
+	private boolean[] mIsCheated;
 	
 	private int mCurrentIndex = 0;
 
@@ -38,10 +44,17 @@ public class QuizActivity extends Activity {
 		Log.d(TAG, "onCreate() called");
 
         setContentView(R.layout.activity_quiz);
-        
+        		
+		mIsCheated = new boolean[mQuestionBank.length];
+		for ( int i=0; i<mIsCheated.length; i++ )
+			mIsCheated[i] = false;
+				
         if ( savedInstanceState != null )
         {
         	mCurrentIndex = savedInstanceState.getInt(KEY_INDEX, 0);
+        	boolean [] cheatedIndices = 
+        			savedInstanceState.getBooleanArray(KEY_CHEAT_INDICES);
+        	System.arraycopy(cheatedIndices, 0, mIsCheated, 0, cheatedIndices.length);
         }
         
         mTrueButton = (Button)findViewById(R.id.true_button);
@@ -49,6 +62,7 @@ public class QuizActivity extends Activity {
         mNextButton = (ImageButton)findViewById(R.id.next_button);
         mPrevButton = (ImageButton)findViewById(R.id.prev_button);
         mQuestionTextView = (TextView)findViewById(R.id.question_text_view);
+        mCheatButton = (Button)findViewById(R.id.cheat_button);
         showQuestion();
         
         /* Button click listeners */
@@ -84,6 +98,21 @@ public class QuizActivity extends Activity {
 			}
 		});
         
+        mCheatButton.setOnClickListener( new View.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				
+				Intent cheatActivityIntent = new Intent(QuizActivity.this, 
+						CheatActivity.class);
+				boolean answerIsTrue = mQuestionBank[mCurrentIndex].isTrueQuestion();
+				cheatActivityIntent.putExtra(CheatActivity.EXTRA_ANSWER_IS_TRUE, answerIsTrue);
+				/* start child activity without return result */
+				//startActivity(cheatActivityIntent);
+				/* start activity, get result back from  child */
+				startActivityForResult(cheatActivityIntent, CHEAT_ACTIVITY_REQUEST_CODE);
+			}
+		});
     }
 
 	@Override
@@ -93,6 +122,17 @@ public class QuizActivity extends Activity {
 		Log.i( TAG, "onSaveInstanceState() called");
 		
 		outState.putInt(KEY_INDEX, mCurrentIndex);
+		outState.putBooleanArray(KEY_CHEAT_INDICES, mIsCheated);
+	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		if  ( ( requestCode == CHEAT_ACTIVITY_REQUEST_CODE) && 
+				( resultCode == RESULT_OK ) )
+		{
+			mIsCheated[mCurrentIndex] = 
+					data.getBooleanExtra(CheatActivity.EXTRA_ANSWER_SHOWN, false);			
+		}
 	}
 
 	@Override
@@ -156,15 +196,21 @@ public class QuizActivity extends Activity {
     {
     	int messageResId = 0;
     	
-    	if ( mQuestionBank[mCurrentIndex].isTrueQuestion() == answer )
-    	{
-    		messageResId = R.string.correct_toast;
-    	}
-    	else
-    	{
-    		messageResId = R.string.incorrect_toast;
-    	}
-    	
+		if ( mIsCheated[mCurrentIndex] )
+		{
+			messageResId = R.string.judgment_toast;
+		}
+		else
+		{
+			if ( mQuestionBank[mCurrentIndex].isTrueQuestion() == answer )
+	    	{
+	    		messageResId = R.string.correct_toast;
+	    	}
+	    	else
+	    	{
+	    		messageResId = R.string.incorrect_toast;
+	    	}
+		}
     	Toast.makeText(QuizActivity.this, messageResId, Toast.LENGTH_SHORT).show();
     }
     

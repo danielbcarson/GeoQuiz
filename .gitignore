@@ -18,3 +18,7 @@ local.properties
 # Eclipse project files
 .classpath
 .project
+.settings/org.eclipse.jdt.core.prefs
+build.xml
+libs/android-support-v4.jar
+proguard-project.txt
